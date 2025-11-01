@@ -105,6 +105,15 @@ translation map in `index.html`.
   independent duration and BPM targets, letting you model rest/run splits inside
   a single stage.
 
+## Deployment
+
+- Enable GitHub Pages via *Settings → Pages* and choose **GitHub Actions** as
+  the source.
+- The workflow in `.github/workflows/deploy.yml` publishes the root directory to
+  Pages on every push to `main` or via manual `workflow_dispatch`.
+- The deployed site is available through the `github-pages` environment once the
+  action completes. Monitor the workflow run for build logs and the final URL.
+
 ## Development Tips
 
 - Test PWA install flows via Chrome DevTools → Application → Manifest, or force
