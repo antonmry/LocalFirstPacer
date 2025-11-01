@@ -46,7 +46,6 @@ take it offline to the track or treadmill.
   version cleanup logic.
 - `icons/` – Lightweight `192x192` and `512x512` icons used by the manifest and
   install banners.
-- `TODO.md` – Backlog of potential enhancements and refactors.
 
 ## Running Locally
 
