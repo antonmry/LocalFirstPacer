@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Frecuencia cardíaca</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:#0f172a;
+    --card:#1f2937;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --accent:#3ba4e9;
+  }
+  body {
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--bg);
+    color:var(--text);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Inter",sans-serif;
+  }
+  .panel {
+    background:var(--card);
+    padding:2.5rem 2rem;
+    border-radius:18px;
+    width:min(320px,90vw);
+    box-shadow:0 24px 60px rgba(0,0,0,0.55);
+    display:grid;
+    gap:1.5rem;
+    text-align:center;
+  }
+  h1 {
+    margin:0;
+    font-size:1rem;
+    font-weight:600;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  #bpmValue {
+    font-size:3rem;
+    font-weight:700;
+  }
+  #bpmValue span {
+    font-size:1rem;
+    color:var(--muted);
+    margin-left:.5rem;
+  }
+  #hrChart {
+    width:100%;
+    height:140px;
+    border-radius:14px;
+    background:rgba(15,23,42,0.7);
+    border:1px solid rgba(148,163,184,0.15);
+  }
+  #toggleBtn {
+    background:var(--accent);
+    border:none;
+    border-radius:12px;
+    padding:.85rem 1rem;
+    color:#0b1120;
+    font-size:1rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 18px 40px rgba(59,164,233,.45);
+  }
+  #toggleBtn:active {
+    transform:translateY(1px);
+    box-shadow:0 12px 24px rgba(59,164,233,.35);
+  }
+  #toggleBtn.disconnected {
+    background:transparent;
+    color:var(--text);
+    border:1px solid rgba(148,163,184,0.25);
+    box-shadow:none;
+  }
+  #status {
+    font-size:.85rem;
+    color:var(--muted);
+    min-height:1.6rem;
+  }
+</style>
+</head>
+<body>
+<main class="panel">
+  <h1>Sesión HR</h1>
+  <div id="bpmValue">--<span>bpm</span></div>
+  <canvas id="hrChart" role="img" aria-label="Historial de ritmo cardíaco"></canvas>
+  <button id="toggleBtn" class="disconnected">Conectar banda</button>
+  <div id="status" aria-live="polite">Listo para conectar.</div>
+</main>
+<script>
+  let deviceRef=null;
+  let serverRef=null;
+  let hrCharRef=null;
+  let hrListener=null;
+  const samples=[];
+  const MAX_POINTS=120;
+  let canvas=null;
+  let ctx=null;
+  let canvasWidth=0;
+  let canvasHeight=0;
+  let drawQueued=false;
+
+  const btn=document.getElementById("toggleBtn");
+  const bpmEl=document.getElementById("bpmValue");
+  const statusEl=document.getElementById("status");
+
+  function setStatus(message){
+    statusEl.textContent=message;
+    console.log(message);
+  }
+
+  function setConnectedUI(isConnected){
+    if(isConnected){
+      btn.textContent="Desconectar";
+      btn.classList.remove("disconnected");
+    }else{
+      btn.textContent="Conectar banda";
+      btn.classList.add("disconnected");
+      bpmEl.firstChild.textContent="--";
+    }
+  }
+
+  function updateBpm(hr){
+    bpmEl.firstChild.textContent=hr.toString();
+    samples.push(hr);
+    if(samples.length>MAX_POINTS){samples.shift();}
+    queueDraw();
+  }
+
+  function setupCanvas(){
+    canvas=document.getElementById("hrChart");
+    if(!canvas)return;
+    const dpr=window.devicePixelRatio||1;
+    const rect=canvas.getBoundingClientRect();
+    canvasWidth=Math.max(rect.width,1);
+    canvasHeight=Math.max(rect.height,1);
+    canvas.width=canvasWidth*dpr;
+    canvas.height=canvasHeight*dpr;
+    ctx=canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    drawGraph(true);
+  }
+
+  function queueDraw(force){
+    if(force){drawGraph(true);return;}
+    if(drawQueued)return;
+    drawQueued=true;
+    requestAnimationFrame(()=>{drawQueued=false;drawGraph();});
+  }
+
+  function drawGraph(force){
+    if(!ctx||!canvasWidth||!canvasHeight)return;
+    ctx.clearRect(0,0,canvasWidth,canvasHeight);
+    if(samples.length===0){
+      if(force){
+        ctx.strokeStyle="rgba(148,163,184,0.35)";
+        ctx.setLineDash([4,4]);
+        ctx.beginPath();
+        ctx.moveTo(0,canvasHeight/2);
+        ctx.lineTo(canvasWidth,canvasHeight/2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      return;
+    }
+    let min=Infinity,max=-Infinity;
+    for(const value of samples){
+      if(value<min)min=value;
+      if(value>max)max=value;
+    }
+    if(min===max){min-=1;max+=1;}
+    const range=max-min;
+    const count=samples.length;
+    const step=count>1?canvasWidth/(count-1):0;
+    const points=[];
+    for(let i=0;i<count;i++){
+      points.push({x:step*i,y:canvasHeight-((samples[i]-min)/range)*canvasHeight});
+    }
+    ctx.lineWidth=2;
+    ctx.strokeStyle="rgba(59,164,233,0.9)";
+    ctx.beginPath();
+    for(let i=0;i<points.length;i++){
+      const p=points[i];
+      if(i===0){ctx.moveTo(p.x,p.y);}else{ctx.lineTo(p.x,p.y);} 
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x,canvasHeight);
+    for(const p of points){ctx.lineTo(p.x,p.y);} 
+    ctx.lineTo(points[points.length-1].x,canvasHeight);
+    ctx.closePath();
+    ctx.fillStyle="rgba(59,164,233,0.15)";
+    ctx.fill();
+  }
+
+  async function ensureSecureContext(){
+    if(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1"){
+      return true;
+    }
+    setStatus("Necesitas HTTPS o localhost para usar Web Bluetooth.");
+    return false;
+  }
+
+  async function handleDisconnect(message){
+    if(hrCharRef&&hrListener){
+      hrCharRef.removeEventListener("characteristicvaluechanged",hrListener);
+      try{await hrCharRef.stopNotifications();}catch(e){console.warn("stopNotifications",e);}
+    }
+    if(deviceRef&&deviceRef.gatt.connected){
+      deviceRef.gatt.disconnect();
+    }
+    deviceRef=null;
+    serverRef=null;
+    hrCharRef=null;
+    hrListener=null;
+    samples.length=0;
+    queueDraw(true);
+    setConnectedUI(false);
+    setStatus(message||"Listo para conectar.");
+  }
+
+  async function onToggle(){
+    if(deviceRef&&deviceRef.gatt.connected){
+      await handleDisconnect("Dispositivo desconectado.");
+      return;
+    }
+
+    if(!navigator.bluetooth){
+      setStatus("navigator.bluetooth no disponible. Usa Chrome.");
+      return;
+    }
+    if(!(await ensureSecureContext())){
+      return;
+    }
+
+    try{
+      setStatus("Buscando dispositivo...");
+      deviceRef=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
+
+      deviceRef.addEventListener("gattserverdisconnected",()=>{handleDisconnect("Conexión perdida.");});
+
+      setStatus("Conectando...");
+      serverRef=await deviceRef.gatt.connect();
+
+      const hrService=await serverRef.getPrimaryService("heart_rate");
+      hrCharRef=await hrService.getCharacteristic("heart_rate_measurement");
+
+      hrListener=event=>{
+        const data=event.target.value;
+        const flags=data.getUint8(0);
+        const hr=(flags&1)?data.getUint16(1,true):data.getUint8(1);
+        updateBpm(hr);
+        setStatus(`HR recibido: ${hr} bpm`);
+      };
+
+      hrCharRef.addEventListener("characteristicvaluechanged",hrListener);
+      await hrCharRef.startNotifications();
+
+      setConnectedUI(true);
+      setStatus("Conectado. Recibiendo datos...");
+    }catch(error){
+      console.error(error);
+      await handleDisconnect("Error: "+error);
+    }
+  }
+
+  btn.addEventListener("click",onToggle);
+  window.addEventListener("resize",()=>{setupCanvas();queueDraw(true);});
+  setConnectedUI(false);
+  setStatus("Listo para conectar.");
+  setupCanvas();
+</script>
+</body>
+</html>
