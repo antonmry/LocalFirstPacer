@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+coverage/
+dist/
+build/
+
+# Local tooling
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+
+# Session notes
+AGENTS.md
