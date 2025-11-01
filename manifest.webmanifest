@@ -1,12 +1,12 @@
 {
-  "name": "Intervalos de carrera",
-  "short_name": "Intervalos",
+  "name": "LocalFirstPacer",
+  "short_name": "LFP",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "lang": "es",
-  "description": "Planifica y controla entrenamientos por intervalos incluso sin conexión.",
+  "description": "LocalFirst Pacer is a hybrid web experience for planning, running, and tracking interval workouts",
   "icons": [
     {
       "src": "icons/icon-192.png",
