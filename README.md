@@ -5,9 +5,10 @@ interval workouts. It is designed to work equally well on desktop and mobile,
 keeps state locally, and ships as an installable Progressive Web App so you can
 take it offline to the track or treadmill.
 
-**WARNING**: All source code in this repository is produced by an autonomous
-code agent and is not intended to be legible by humans; expect unconventional
-structure and minimal inline explanation.
+> ⚠️ **Warning**
+> All source code in this repository is produced by an autonomous code agent
+> and is not intended to be legible by humans; expect unconventional structure
+> and minimal inline explanation.
 
 ## Features
 
